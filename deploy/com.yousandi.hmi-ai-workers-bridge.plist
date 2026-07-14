@@ -29,8 +29,10 @@
     <string>/Users/frankyang/Library/Application Support/HMIAIWorkersBridge/bridge_state.json</string>
     <key>HMI_BRIDGE_WORKSPACE_DIR</key>
     <string>/Users/frankyang/Documents/AI cowork</string>
+    <key>HMI_BRIDGE_ESTIMATED_REPLY_SECONDS</key>
+    <string>5400</string>
     <key>HMI_BRIDGE_MAX_BACKLOG_SECONDS</key>
-    <string>3600</string>
+    <string>5400</string>
     <key>PYTHONUNBUFFERED</key>
     <string>1</string>
   </dict>
