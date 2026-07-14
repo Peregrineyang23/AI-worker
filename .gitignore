@@ -1,0 +1,25 @@
+# ===== 密钥与本地配置（绝不提交）=====
+bridge/wb_bridge_llm.json
+*.key
+*.secret
+.env
+.env.*
+*.local.json
+
+# ===== 运行时状态 / 缓存 / 日志（含聊天内容与 PII，不提交）=====
+bridge/bridge_state.json
+bridge/bridge_pending_tasks.json
+bridge/bridge_reply_drafts.json
+bridge/bridge_message_context.json
+bridge/bridge_praised_answers.json
+bridge/bridge_workbuddy_claimed.json
+bridge/bridge_workbuddy_deferred.json
+__pycache__/
+*.pyc
+logs/
+*.log
+
+# ===== OS / 编辑器 =====
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.yousandi.wb-bridge-fastpoll</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/frankyang/Library/Application Support/HMIAIWorkersBridge/wb_bridge_fastpoll.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/frankyang/Library/Application Support/HMIAIWorkersBridge</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HMI_BRIDGE_BASE_DIR</key>
+        <string>/Users/frankyang/Library/Application Support/HMIAIWorkersBridge</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/Users/frankyang/.npm-global/bin</string>
+    </dict>
+    <key>StartInterval</key>
+    <integer>120</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/frankyang/Library/Application Support/HMIAIWorkersBridge/logs/fastpoll.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/frankyang/Library/Application Support/HMIAIWorkersBridge/logs/fastpoll.err.log</string>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+</dict>
+</plist>

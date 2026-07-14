@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.yousandi.hmi-ai-workers-bridge</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/Users/frankyang/Library/Application Support/HMIAIWorkersBridge/bridge.py</string>
+    <string>--mode</string>
+    <string>hybrid</string>
+    <string>--interval</string>
+    <string>10</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/frankyang/Library/Application Support/HMIAIWorkersBridge</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/frankyang/.npm-global/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HMI_BRIDGE_BASE_DIR</key>
+    <string>/Users/frankyang/Library/Application Support/HMIAIWorkersBridge</string>
+    <key>HMI_BRIDGE_STATE_FILE</key>
+    <string>/Users/frankyang/Library/Application Support/HMIAIWorkersBridge/bridge_state.json</string>
+    <key>HMI_BRIDGE_WORKSPACE_DIR</key>
+    <string>/Users/frankyang/Documents/AI cowork</string>
+    <key>HMI_BRIDGE_MAX_BACKLOG_SECONDS</key>
+    <string>3600</string>
+    <key>PYTHONUNBUFFERED</key>
+    <string>1</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/frankyang/Library/Application Support/HMIAIWorkersBridge/logs/bridge.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/frankyang/Library/Application Support/HMIAIWorkersBridge/logs/bridge.err.log</string>
+</dict>
+</plist>
