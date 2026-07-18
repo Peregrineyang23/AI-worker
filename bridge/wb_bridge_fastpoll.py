@@ -11,9 +11,12 @@
   - 只发预览到私有测试会话，绝不直发正式群（发布由用户回「确认发送 <draft_id>」触发）。
   - 幂等（复用 helper 的认领集合）、熔断（复用 helper 的发送熔断）、不自动点赞、不周期刷屏。
 
-模型配置：
-  - 优先读环境变量 HMI_BRIDGE_LLM_API_KEY / HMI_BRIDGE_LLM_BASE_URL / HMI_BRIDGE_LLM_MODEL
-  - 否则读同目录 wb_bridge_llm.json：{ "base_url", "api_key", "model", "timeout" }
+模型配置（路由策略）：
+  - 默认（通用文本）：HMI_BRIDGE_LLM_* 或 wb_bridge_llm.json（当前 DeepSeek）
+  - UI / 交互 / 前端设计类（命中 DESIGN_KEYWORDS）：优先路由 Kimi K3（帆½ 默认设计模型）
+        HMI_BRIDGE_KIMI_* 或 wb_bridge_kimi.json（model=kimi-k3, base_url=https://api.moonshot.cn/v1）
+        Kimi K3 未配置时自动回退默认模型，并在日志提示。
+  - 多模态（图片/视频/3D，命中 MULTIMODAL_KEYWORDS）：不在此处理，defer 给 WorkBuddy 自动化。
   - 不把密钥写死在脚本里。
 """
 
@@ -41,11 +44,28 @@ MULTIMODAL_KEYWORDS = (
     "image", "video", "render", "avatar",
 )
 
+# UI / 交互 / 前端设计类意图 -> 路由到 Kimi K3（帆½ 默认设计模型）
+DESIGN_KEYWORDS = (
+    "ui", "界面", "原型", "交互", "hmi", "前端", "网页", "网站", "web",
+    "app", "小程序", "组件", "布局", "ux", "高保真", "线框", "wireframe",
+    "页面设计", "dashboard", "看板", "官网", "落地页", "landing", "gui",
+    "视觉设计", "设计稿", "界面设计", "产品界面", "原型图", "figma",
+    "设计系统", "design system", "配色", "字体", "排版",
+)
+
 POLICY_SYSTEM = (
     "你是飞书群「AI workers for HMI Design」的回复助手（文本快速通道，由本地模型生成）。"
     "严格遵守桥接策略：回复必须是一个明确结论 + 2-5 个信息区块 + 证据/限制 + 唯一下一步动作；"
     "不发布过程性分工、不猜测介入未 @ 你的消息、不自动点赞、不把其他机器人的「已完成」当作事实。"
     "用简洁中文，飞书 markdown 风格。"
+)
+
+DESIGN_SYSTEM = (
+    "你是飞书群「AI workers for HMI Design」的 UI/交互设计助手（由 Kimi K3 驱动，帆½ 默认设计模型）。"
+    "遇到 UI/界面/交互/前端设计类问题，优先给出可直接落地的产出："
+    "① 若要求原型/界面/网页，优先输出可运行的 HTML/CSS/JS 代码片段或完整单文件原型；"
+    "② 若要求方案/方向，给出明确结论 + 信息架构 + 交互流程 + 视觉规范（配色/字体/间距/组件）；"
+    "③ 用简洁中文，飞书 markdown 风格；代码片段用代码块包裹，便于复制。"
 )
 
 
@@ -88,24 +108,53 @@ def load_llm_config():
     return cfg
 
 
+def load_kimi_config():
+    """帆½ 默认设计模型（Kimi K3）配置：优先环境变量 HMI_BRIDGE_KIMI_*，否则 wb_bridge_kimi.json。"""
+    cfg = {
+        "base_url": os.environ.get("HMI_BRIDGE_KIMI_BASE_URL", ""),
+        "api_key": os.environ.get("HMI_BRIDGE_KIMI_API_KEY", ""),
+        "model": os.environ.get("HMI_BRIDGE_KIMI_MODEL", "kimi-k3"),
+        "timeout": int(os.environ.get("HMI_BRIDGE_KIMI_TIMEOUT", "120")),
+    }
+    path = os.path.join(BASE_DIR, "wb_bridge_kimi.json")
+    if os.path.exists(path):
+        f = load_json(path, {})
+        for k in ("base_url", "api_key", "model", "timeout"):
+            if f.get(k):
+                cfg[k] = f[k]
+    # Kimi K3 仅支持 reasoning_effort="max" 一档，且采样参数固定（省略 temperature）
+    cfg["reasoning_effort"] = "max"
+    return cfg
+
+
 def is_multimodal(request):
     low = request.lower()
     return any(k.lower() in low for k in MULTIMODAL_KEYWORDS)
 
 
-def call_llm(cfg, user_text):
+def is_design(request):
+    low = request.lower()
+    return any(k.lower() in low for k in DESIGN_KEYWORDS)
+
+
+def call_llm(cfg, user_text, system=None, design=False):
     if not cfg.get("base_url") or not cfg.get("api_key"):
-        raise RuntimeError("LLM 未配置：缺少 base_url 或 api_key（请设置环境变量或 wb_bridge_llm.json）")
+        raise RuntimeError("LLM 未配置：缺少 base_url 或 api_key")
     url = cfg["base_url"].rstrip("/") + "/chat/completions"
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": user_text})
     payload = {
         "model": cfg.get("model") or "deepseek-chat",
-        "messages": [
-            {"role": "system", "content": POLICY_SYSTEM},
-            {"role": "user", "content": user_text},
-        ],
-        "temperature": 0.3,
-        "max_tokens": 1200,
+        "messages": messages,
+        "max_tokens": 8192 if design else 1200,
     }
+    # Kimi K3 需要 reasoning_effort（仅 "max" 一档）；采样参数固定，省略 temperature
+    if cfg.get("reasoning_effort"):
+        payload["reasoning_effort"] = cfg["reasoning_effort"]
+    else:
+        payload["temperature"] = 0.3
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
@@ -142,7 +191,7 @@ def info_block(title, body, color="blue", margin="0px 0px 12px 0px"):
     }
 
 
-def build_card(request, reply_text):
+def build_card(request, reply_text, engine="本地快速通道"):
     now = time.strftime("%Y-%m-%d %H:%M")
     # 把回复正文按段落拆成信息块，避免单条超长
     paras = [p.strip() for p in reply_text.split("\n\n") if p.strip()]
@@ -154,7 +203,7 @@ def build_card(request, reply_text):
     elements.append({
         "tag": "div", "margin": "0px",
         "fields": [
-            {"is_short": True, "text": {"tag": "lark_md", "content": "**引擎**\n本地快速通道"}},
+            {"is_short": True, "text": {"tag": "lark_md", "content": f"**引擎**\n{engine}"}},
             {"is_short": True, "text": {"tag": "lark_md", "content": "**下一步**\n回复「确认发送」发布；多模态需求转 WorkBuddy"}},
         ],
     })
@@ -189,10 +238,14 @@ def main():
     parser.add_argument("--max", type=int, default=MAX_PER_RUN, help="本轮最多处理任务数")
     args = parser.parse_args()
 
-    cfg = load_llm_config()
-    if not cfg.get("base_url") or not cfg.get("api_key"):
-        print("[fastpoll] LLM 未配置，跳过本轮（请在 wb_bridge_llm.json 或环境变量中配置）。", file=sys.stderr)
+    default_cfg = load_llm_config()
+    kimi_cfg = load_kimi_config()
+    if not default_cfg.get("base_url") or not default_cfg.get("api_key"):
+        print("[fastpoll] 默认 LLM 未配置，跳过本轮（请在 wb_bridge_llm.json 或环境变量中配置）。", file=sys.stderr)
         return
+    kimi_ready = bool(kimi_cfg.get("base_url") and kimi_cfg.get("api_key"))
+    if not kimi_ready:
+        print("[fastpoll] Kimi K3 未配置（wb_bridge_kimi.json / HMI_BRIDGE_KIMI_*），UI 设计任务将回退默认模型。", file=sys.stderr)
 
     deferred = load_deferred()
     # 本轮跳过集：已 defer 的多模态任务 + 本轮已看过/已处理的任务。
@@ -222,9 +275,25 @@ def main():
                 print(f"[fastpoll] 任务 {mid} 含多模态意图，转交 WorkBuddy 自动化（不在此处理）。", file=sys.stderr)
             continue
 
+        # UI / 交互 / 前端设计类 -> 优先路由 Kimi K3（帆½ 默认设计模型）
+        design = is_design(request)
+        if design:
+            if kimi_ready:
+                cfg = kimi_cfg
+                engine = "Kimi K3（kimi-k3）"
+                sys_prompt = DESIGN_SYSTEM
+            else:
+                cfg = default_cfg
+                engine = f"默认模型回退（{default_cfg.get('model', 'deepseek')}）"
+                sys_prompt = POLICY_SYSTEM
+        else:
+            cfg = default_cfg
+            engine = default_cfg.get("model", "deepseek")
+            sys_prompt = POLICY_SYSTEM
+
         try:
-            reply = call_llm(cfg, f"原消息：{request}\n请按桥接策略生成正式回复。")
-            card = build_card(request, reply)
+            reply = call_llm(cfg, f"原消息：{request}\n请按桥接策略生成正式回复。", system=sys_prompt, design=design)
+            card = build_card(request, reply, engine)
             card_file = f"/tmp/wb_fastpoll_{mid}.json"
             with open(card_file, "w", encoding="utf-8") as f:
                 json.dump(card, f, ensure_ascii=False, indent=2)
