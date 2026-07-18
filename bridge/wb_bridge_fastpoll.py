@@ -39,18 +39,19 @@ MAX_PER_RUN = 3
 
 MULTIMODAL_KEYWORDS = (
     "图片", "插画", "海报", "封面", "配图", "示意图", "架构图", "流程图",
-    "视频", "动效", "动画", "短片", "3d", "3D", "三维", "模型", "渲染",
+    "视频", "动效", "动画", "短片", "3d", "3D", "三维", "渲染",
     "生成一张", "画一张", "做一张图", "做个视频", "出个图", "视觉稿",
     "image", "video", "render", "avatar",
 )
 
 # UI / 交互 / 前端设计类意图 -> 路由到 Kimi K3（帆½ 默认设计模型）
 DESIGN_KEYWORDS = (
-    "ui", "界面", "原型", "交互", "hmi", "前端", "网页", "网站", "web",
+    "ui", "界面", "设计", "方案", "原型", "交互", "hmi", "前端", "网页", "网站", "web",
     "app", "小程序", "组件", "布局", "ux", "高保真", "线框", "wireframe",
-    "页面设计", "dashboard", "看板", "官网", "落地页", "landing", "gui",
-    "视觉设计", "设计稿", "界面设计", "产品界面", "原型图", "figma",
-    "设计系统", "design system", "配色", "字体", "排版",
+    "页面", "页面设计", "dashboard", "看板", "官网", "落地页", "landing", "gui",
+    "视觉", "视觉设计", "设计稿", "界面设计", "产品界面", "原型图", "figma",
+    "设计系统", "design system", "配色", "字体", "排版", "样式", "风格",
+    "门户", "屏幕", "mockup", "screen", "layout", "prototype",
 )
 
 POLICY_SYSTEM = (
@@ -114,7 +115,7 @@ def load_kimi_config():
         "base_url": os.environ.get("HMI_BRIDGE_KIMI_BASE_URL", ""),
         "api_key": os.environ.get("HMI_BRIDGE_KIMI_API_KEY", ""),
         "model": os.environ.get("HMI_BRIDGE_KIMI_MODEL", "kimi-k3"),
-        "timeout": int(os.environ.get("HMI_BRIDGE_KIMI_TIMEOUT", "120")),
+        "timeout": int(os.environ.get("HMI_BRIDGE_KIMI_TIMEOUT", "360")),
     }
     path = os.path.join(BASE_DIR, "wb_bridge_kimi.json")
     if os.path.exists(path):
@@ -148,7 +149,7 @@ def call_llm(cfg, user_text, system=None, design=False):
     payload = {
         "model": cfg.get("model") or "deepseek-chat",
         "messages": messages,
-        "max_tokens": 8192 if design else 1200,
+        "max_tokens": 10000 if design else 1200,
     }
     # Kimi K3 需要 reasoning_effort（仅 "max" 一档）；采样参数固定，省略 temperature
     if cfg.get("reasoning_effort"):
