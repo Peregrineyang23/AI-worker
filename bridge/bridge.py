@@ -928,13 +928,11 @@ def process_message(
         seen.add(message_id)
         return False
     if sender_type in {"app", "bot"}:
+        # 仅 @帆½ 的消息才加表情（OK，见下方 human 分支）；其他 bot 消息不再自动加 Get。
+        # 保留人工「高质量点赞」触发的 THUMBSUP（受 AUTO_PRAISE_ENABLED 控制，默认关闭）。
         try:
-            if reply_to:
-                add_message_reaction(message_id, REQUEST_REACTION)
-                if AUTO_PRAISE_ENABLED and is_answer_worthy_of_praise(content, reply_to):
-                    add_message_reaction(message_id, "THUMBSUP")
-            elif bot_mentioned and is_request_or_question(content):
-                add_message_reaction(message_id, REQUEST_REACTION)
+            if reply_to and AUTO_PRAISE_ENABLED and is_answer_worthy_of_praise(content, reply_to):
+                add_message_reaction(message_id, "THUMBSUP")
         except Exception as exc:
             print(f"Bot reaction error for {message_id}: {exc}", file=sys.stderr)
         seen.add(message_id)
